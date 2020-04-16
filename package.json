@@ -9,6 +9,11 @@
     "zoom"
   ],
   "main": "./dist/usePanZoom.js",
+  "homepage": "https://github.com/littlee/use-pan-zoom",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/littlee/use-pan-zoom.git"
+  },
   "scripts": {
     "build": "babel src -d dist",
     "test": "echo \"Error: no test specified\" && exit 1"
