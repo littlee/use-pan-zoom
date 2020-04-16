@@ -31,18 +31,18 @@ const App = () => {
 ## API
 
 ```js
-const value = usePanZoom(options);
+const values = usePanZoom(options);
 ```
 
-value: (Object)
+values: (Object)
 
-- elemRef: (Function) an React Callback Ref https://reactjs.org/docs/refs-and-the-dom.html#callback-refs
+- elemRef: (Function) a React Callback Ref https://reactjs.org/docs/refs-and-the-dom.html#callback-refs
 - style: (Object)
   - x: (Number) x position
   - y: (Number) y position
   - scale: (Number) scale ratio
 - setStyle: (Function) style setter
-- origin: (Object) transform origin based on screen
+- origin: (Object) transform origin based on whole viewport
   - x: (Number)
   - y: (Number)
 - setOrigin: (Function) transform origin setter
@@ -88,7 +88,7 @@ options: (Object)
 
 ## FAQ
 
-- multiple ref integration
+- multiple refs integration
 
 ```js
 const App = () => {

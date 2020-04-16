@@ -1,7 +1,8 @@
 {
   "name": "use-pan-zoom",
   "version": "1.0.0",
-  "description": "",
+  "description": "React hook for panning & zooming element",
+  "keywords": ["react", "hooks", "pan", "zoom"],
   "main": "./dist/usePanZoom.js",
   "scripts": {
     "build": "babel src -d dist",
@@ -13,5 +14,9 @@
     "@babel/cli": "^7.8.4",
     "@babel/core": "^7.9.0",
     "@babel/preset-env": "^7.9.5"
+  },
+  "dependencies": {
+    "interactjs": "^1.9.9",
+    "react": "^16.13.1"
   }
 }
