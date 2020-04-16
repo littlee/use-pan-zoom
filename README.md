@@ -21,7 +21,7 @@ const App = () => {
     <div
       ref={elemRef}
       style={{
-        transform: `translate3d(${style.x}px, ${style.y}, 0) scale(${style.scale})`
+        transform: `translate3d(${style.x}px, ${style.y}px, 0) scale(${style.scale})`
       }}
     />
   );
@@ -102,7 +102,7 @@ const App = () => {
         elemRef(node);
       }}
       style={{
-        transform: `translate3d(${style.x}px, ${style.y}, 0) scale(${style.scale})`
+        transform: `translate3d(${style.x}px, ${style.y}px, 0) scale(${style.scale})`
       }}
     />
   );
