@@ -1,0 +1,17 @@
+{
+  "name": "use-pan-zoom",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/usePanZoom.js",
+  "scripts": {
+    "build": "babel src -d dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.0",
+    "@babel/preset-env": "^7.9.5"
+  }
+}
