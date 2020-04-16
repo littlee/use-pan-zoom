@@ -72,7 +72,7 @@ options: (Object)
     }
   }
   ```
-  defaut
+  default
   ```js
   {
     x: [-Infinity, Infinity],
