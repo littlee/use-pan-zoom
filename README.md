@@ -63,12 +63,15 @@ options: (Object)
     elem, // dom node
     origin, // current zoom origin
     style, // current element style
-    size // current element size
+    size // current element size, from `getBoundingClientRect()`
   }) => {
-    const parent = elem.parentElement.getBoundingClientRect();
+    // keep element stay inside its parent element
+    // `-(size.width - parent.width)` may be greater than 0,
+    // but `use-pan-zoom` will manage it automatically :)
+    const parent = elem.parentElement.getBoundingCßlientRect();
     return {
-      x: [-(style.scale * size.width - parent.width), 0],
-      y: [-(style.scale * size.height - parent.height), 0]
+      x: [-(size.width - parent.width), 0],
+      y: [-(size.height - parent.height), 0]
     }
   }
   ```
