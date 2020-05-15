@@ -7,10 +7,6 @@ exports["default"] = void 0;
 
 var _react = require("react");
 
-var _interactjs = _interopRequireDefault(require("interactjs"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
 
 function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
@@ -60,36 +56,68 @@ function sortBounds(b) {
   };
 }
 
+function tryCall(fn) {
+  if (typeof fn === 'function') {
+    for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+      args[_key2 - 1] = arguments[_key2];
+    }
+
+    return fn.apply(void 0, args);
+  }
+}
+
+function distance2p(_ref) {
+  var _ref2 = _slicedToArray(_ref, 2),
+      p1 = _ref2[0],
+      p2 = _ref2[1];
+
+  return Math.sqrt(Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2));
+}
+
+function center2p(_ref3) {
+  var _ref4 = _slicedToArray(_ref3, 2),
+      p1 = _ref4[0],
+      p2 = _ref4[1];
+
+  return {
+    x: (p1.clientX + p2.clientX) / 2,
+    y: (p1.clientY + p2.clientY) / 2
+  };
+}
+
+function getInsideTouch(rect, touches) {
+  return [].filter.call(touches, function (item) {
+    return item.clientX >= rect.x && item.clientX <= rect.x + rect.width && item.clientY >= rect.y && item.clientY <= rect.y + rect.height;
+  });
+}
+
 function usePanZoom() {
-  var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-      _ref$minScale = _ref.minScale,
-      minScale = _ref$minScale === void 0 ? -Infinity : _ref$minScale,
-      _ref$maxScale = _ref.maxScale,
-      maxScale = _ref$maxScale === void 0 ? Infinity : _ref$maxScale,
-      onPanStart = _ref.onPanStart,
-      onPan = _ref.onPan,
-      onPanEnd = _ref.onPanEnd,
-      onZoomStart = _ref.onZoomStart,
-      onZoom = _ref.onZoom,
-      onZoomEnd = _ref.onZoomEnd,
-      _ref$bounds = _ref.bounds,
-      bounds = _ref$bounds === void 0 ? {
+  var _ref5 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+      _ref5$minScale = _ref5.minScale,
+      minScale = _ref5$minScale === void 0 ? -Infinity : _ref5$minScale,
+      _ref5$maxScale = _ref5.maxScale,
+      maxScale = _ref5$maxScale === void 0 ? Infinity : _ref5$maxScale,
+      onPanStart = _ref5.onPanStart,
+      onPan = _ref5.onPan,
+      onPanEnd = _ref5.onPanEnd,
+      onZoomStart = _ref5.onZoomStart,
+      onZoom = _ref5.onZoom,
+      onZoomEnd = _ref5.onZoomEnd,
+      _ref5$bounds = _ref5.bounds,
+      bounds = _ref5$bounds === void 0 ? {
     x: [-Infinity, Infinity],
     y: [-Infinity, Infinity]
-  } : _ref$bounds;
+  } : _ref5$bounds;
 
   var elemDomRef = (0, _react.useRef)();
-  var sizeRef = (0, _react.useRef)({
+  var elemRectRef = (0, _react.useRef)({
     width: 0,
     height: 0
   });
   var elemRef = (0, _react.useCallback)(function (node) {
     if (node !== null) {
       var rect = node.getBoundingClientRect();
-      sizeRef.current = {
-        width: rect.width,
-        height: rect.height
-      };
+      elemRectRef.current = rect;
       elemDomRef.current = node;
     }
   }, []);
@@ -121,7 +149,7 @@ function usePanZoom() {
       elem: elemDomRef.current,
       origin: origin,
       style: style,
-      size: sizeRef.current
+      rect: elemRectRef.current
     }));
     cbRef.current = {
       onPanStart: onPanStart,
@@ -139,10 +167,10 @@ function usePanZoom() {
       var nextScale = clamp(minScale, maxScale, ms.scale + ds);
       var clampDs = nextScale - ms.scale;
       var dot = {
-        x: (rOrigin.x - ms.x) / ms.scale,
-        y: (rOrigin.y - ms.y) / ms.scale
+        x: (rOrigin.x - ms.x) / nextScale,
+        y: (rOrigin.y - ms.y) / nextScale
       };
-      var elemSize = sizeRef.current;
+      var elemSize = elemRectRef.current;
       var accX = elemSize.width * clampDs * (dot.x / elemSize.width);
       var accY = elemSize.height * clampDs * (dot.y / elemSize.height);
       var nextX = clamp(rBounds.x[0], rBounds.x[1], ms.x - accX);
@@ -164,13 +192,15 @@ function usePanZoom() {
 
       if (e.ctrlKey) {
         if (!called) {
-          cbRef.current.onZoomStart && cbRef.current.onZoomStart(e);
+          tryCall(cbRef.current.onZoomStart, e);
           called = true;
+        } else {
+          tryCall(cbRef.current.onZoom, e);
         }
 
         clearTimeout(t);
         t = setTimeout(function () {
-          cbRef.current.onZoomEnd && cbRef.current.onZoomEnd(e);
+          tryCall(cbRef.current.onZoomEnd, e);
           called = false;
         }, 200);
         var ds = -1 * e.deltaY * 0.005;
@@ -189,7 +219,7 @@ function usePanZoom() {
     };
   }, [zoom]);
   (0, _react.useEffect)(function () {
-    function dragMoveListener(event, ds) {
+    function dragMoveListener(event) {
       setStyle(function (ms) {
         var rBounds = boundsRef.current;
         var nextX = clamp(rBounds.x[0], rBounds.x[1], ms.x + event.dx);
@@ -201,39 +231,100 @@ function usePanZoom() {
       });
     }
 
-    var _int = (0, _interactjs["default"])(elemDomRef.current).draggable({
-      listeners: {
-        start: function start(event) {
-          cbRef.current.onPanStart && cbRef.current.onPanStart(event);
-        },
-        move: function move(event) {
-          dragMoveListener(event);
-          cbRef.current.onPan && cbRef.current.onPan(event);
-        },
-        end: function end(event) {
-          cbRef.current.onPanEnd && cbRef.current.onPanEnd(event);
-        }
-      }
-    }).gesturable({
-      listeners: {
-        start: function start(event) {
-          setOrigin(event.page);
-          cbRef.current.onZoomStart && cbRef.current.onZoomStart(event);
-        },
-        move: function move(event) {
-          setOrigin(event.page);
-          zoom(event.ds);
-          cbRef.current.onZoom && cbRef.current.onZoom(event);
-        },
-        end: function end(event) {
-          setOrigin(event.page);
-          cbRef.current.onZoomEnd && cbRef.current.onZoomEnd(event);
-        }
-      }
-    });
+    var $elem = elemDomRef.current;
+    var prevTouch = {
+      clientX: 0,
+      clientY: 0
+    };
+    var prevZoomTouch = [{
+      clientX: 0,
+      clientY: 0
+    }, {
+      clientX: 0,
+      clientY: 0
+    }];
 
+    function onTouchStart(e) {
+      e.preventDefault();
+      var touches = getInsideTouch(elemRectRef.current, e.touches); // pan
+
+      if (touches.length === 1) {
+        var _e$touches = _slicedToArray(e.touches, 1),
+            touch = _e$touches[0];
+
+        tryCall(cbRef.current.onPanStart, e);
+        prevTouch.clientX = touch.clientX;
+        prevTouch.clientY = touch.clientY;
+      } // zoom
+      else if (touches.length >= 2) {
+          var touchCenter = center2p(touches);
+          setOrigin(touchCenter);
+          tryCall(cbRef.current.onZoomStart, e);
+          prevZoomTouch = [{
+            clientX: touches[0].clientX,
+            clientY: touches[0].clientY
+          }, {
+            clientX: touches[1].clientX,
+            clientY: touches[1].clientY
+          }];
+        }
+    }
+
+    function onTouchMove(e) {
+      e.preventDefault();
+      var touches = getInsideTouch(elemRectRef.current, e.touches); // pan
+
+      if (touches.length === 1) {
+        var _touches = _slicedToArray(touches, 1),
+            touch = _touches[0];
+
+        var deltaX = touch.clientX - prevTouch.clientX;
+        var deltaY = touch.clientY - prevTouch.clientY;
+        dragMoveListener({
+          dx: deltaX,
+          dy: deltaY
+        });
+        tryCall(cbRef.current.onPan, e);
+        prevTouch.clientX = touch.clientX;
+        prevTouch.clientY = touch.clientY;
+      } // zoom
+      else if (touches.length >= 2) {
+          var touchCenter = center2p(touches);
+          var dis = distance2p(touches);
+          var prevDis = distance2p(prevZoomTouch);
+          var deltaDis = dis - prevDis;
+          setOrigin(touchCenter);
+          zoom(deltaDis * 0.005);
+          tryCall(cbRef.current.onZoom, e);
+          prevZoomTouch = [{
+            clientX: touches[0].clientX,
+            clientY: touches[0].clientY
+          }, {
+            clientX: touches[1].clientX,
+            clientY: touches[1].clientY
+          }];
+        }
+    }
+
+    function onTouchEnd(e) {
+      e.preventDefault();
+      var touches = getInsideTouch(elemRectRef.current, e.changedTouches); // pan
+
+      if (touches.length === 1) {
+        tryCall(cbRef.current.onPanEnd, e);
+      } // zoom
+      else if (touches.length >= 2) {
+          tryCall(cbRef.current.onZoomEnd, e);
+        }
+    }
+
+    $elem.addEventListener('touchstart', onTouchStart);
+    $elem.addEventListener('touchmove', onTouchMove);
+    $elem.addEventListener('touchend', onTouchEnd);
     return function () {
-      _int.unset();
+      $elem.removeEventListener('touchstart', onTouchStart);
+      $elem.removeEventListener('touchmove', onTouchMove);
+      $elem.removeEventListener('touchend', onTouchEnd);
     };
   }, [zoom]);
   return {
