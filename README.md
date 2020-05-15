@@ -21,6 +21,8 @@ const App = () => {
     <div
       ref={elemRef}
       style={{
+        touchAction: 'none',
+        transformOrigin: '0 0',
         transform: `translate3d(${style.x}px, ${style.y}px, 0) scale(${style.scale})`
       }}
     />
@@ -52,36 +54,48 @@ options: (Object)
 - minScale: (Number) minimum scale, default `-Infinity`
 - maxScale: (Number) maximum scale, default `Infinity`
 - bounds: (Object | Function({ elem, origin, style, rect }) => Object) element position bounds
+
   ```js
   // object form
-  bounds: {
+  const bounds = {
     x: [-100, 100],
     y: [-100, 100]
-  }
+  };
   // function form
-  bounds: ({
+  const bounds = ({
     elem, // dom node
     origin, // current zoom origin
     style, // current element style
-    rect // current element rect, from `getBoundingClientRect()`
+    rect // elem's initial rect, from `getBoundingClientRect()`
   }) => {
     // keep element stay inside its parent element
-    // `-(rect.width - parent.width)` may be greater than 0,
+    // `-(size.width - parent.width)` may be greater than 0,
     // but `use-pan-zoom` will manage it automatically :)
+    const size = {
+      width: rect.width * style.scale,
+      height: rect.height * style.scale
+    };
     const parent = elem.parentElement.getBoundingClientRect();
     return {
-      x: [-(rect.width - parent.width), 0],
-      y: [-(rect.height - parent.height), 0]
-    }
-  }
+      x: [-(size.width - parent.width), 0],
+      y: [-(size.height - parent.height), 0]
+    };
+  };
+
+  const { elemRef, style } = usePanZoom({
+    bounds
+  });
   ```
+
   default
+
   ```js
-  {
+  const bounds = {
     x: [-Infinity, Infinity],
     y: [-Infinity, Infinity]
-  }
+  };
   ```
+
 - onPanStart: (Function(event)) pan start callback
 - onPan: (Function(event)) panning callback
 - onPanEnd: (Function(event)) pan end callback
@@ -105,6 +119,8 @@ const App = () => {
         elemRef(node);
       }}
       style={{
+        touchAction: 'none',
+        transformOrigin: '0 0',
         transform: `translate3d(${style.x}px, ${style.y}px, 0) scale(${style.scale})`
       }}
     />

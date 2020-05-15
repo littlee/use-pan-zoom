@@ -42,7 +42,13 @@ function center2p([p1, p2]) {
   };
 }
 
-function getInsideTouch(rect, touches) {
+function getInsideTouch(size, style, touches) {
+  const rect = {
+    x: style.x,
+    y: style.y,
+    width: size.width * style.scale,
+    height: size.height * style.scale
+  };
   return [].filter.call(touches, item => {
     return (
       item.clientX >= rect.x &&
@@ -91,10 +97,12 @@ function usePanZoom({
 
   // ref copy
   const originRef = useRef();
+  const styleRef = useRef();
   const boundsRef = useRef();
   const cbRef = useRef();
   useEffect(() => {
     originRef.current = origin;
+    styleRef.current = style;
     boundsRef.current = sortBounds(
       getFnValue(bounds, {
         elem: elemDomRef.current,
@@ -206,7 +214,11 @@ function usePanZoom({
 
     function onTouchStart(e) {
       e.preventDefault();
-      const touches = getInsideTouch(elemRectRef.current, e.touches);
+      const touches = getInsideTouch(
+        elemRectRef.current,
+        styleRef.current,
+        e.touches
+      );
       // pan
       if (touches.length === 1) {
         const [touch] = e.touches;
@@ -235,7 +247,11 @@ function usePanZoom({
 
     function onTouchMove(e) {
       e.preventDefault();
-      const touches = getInsideTouch(elemRectRef.current, e.touches);
+      const touches = getInsideTouch(
+        elemRectRef.current,
+        styleRef.current,
+        e.touches
+      );
       // pan
       if (touches.length === 1) {
         const [touch] = touches;
@@ -275,7 +291,11 @@ function usePanZoom({
 
     function onTouchEnd(e) {
       e.preventDefault();
-      const touches = getInsideTouch(elemRectRef.current, e.changedTouches);
+      const touches = getInsideTouch(
+        elemRectRef.current,
+        styleRef.current,
+        e.changedTouches
+      );
       // pan
       if (touches.length === 1) {
         tryCall(cbRef.current.onPanEnd, e);
