@@ -26,7 +26,6 @@
     "@babel/preset-env": "^7.9.5"
   },
   "dependencies": {
-    "interactjs": "^1.9.9",
     "react": "^16.13.1"
   }
 }

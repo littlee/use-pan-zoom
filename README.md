@@ -51,7 +51,7 @@ options: (Object)
 
 - minScale: (Number) minimum scale, default `-Infinity`
 - maxScale: (Number) maximum scale, default `Infinity`
-- bounds: (Object | Function({ elem, origin, style, size }) => Object) element position bounds
+- bounds: (Object | Function({ elem, origin, style, rect }) => Object) element position bounds
   ```js
   // object form
   bounds: {
@@ -63,15 +63,15 @@ options: (Object)
     elem, // dom node
     origin, // current zoom origin
     style, // current element style
-    size // current element size, from `getBoundingClientRect()`
+    rect // current element rect, from `getBoundingClientRect()`
   }) => {
     // keep element stay inside its parent element
-    // `-(size.width - parent.width)` may be greater than 0,
+    // `-(rect.width - parent.width)` may be greater than 0,
     // but `use-pan-zoom` will manage it automatically :)
     const parent = elem.parentElement.getBoundingClientRect();
     return {
-      x: [-(size.width - parent.width), 0],
-      y: [-(size.height - parent.height), 0]
+      x: [-(rect.width - parent.width), 0],
+      y: [-(rect.height - parent.height), 0]
     }
   }
   ```
