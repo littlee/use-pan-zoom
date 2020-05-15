@@ -1,6 +1,6 @@
 {
   "name": "use-pan-zoom",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "React hook for panning & zooming element",
   "keywords": [
     "react",
