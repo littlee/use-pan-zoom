@@ -59,6 +59,16 @@ function getInsideTouch(size, style, touches) {
   });
 }
 
+function getMoveDelta(touch, prevTouch) {
+  if (touch.identifier !== prevTouch.identifier) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: touch.clientX - prevTouch.clientX,
+    y: touch.clientY - prevTouch.clientY
+  };
+}
+
 function usePanZoom({
   minScale = -Infinity,
   maxScale = Infinity,
@@ -196,21 +206,8 @@ function usePanZoom({
     }
 
     const $elem = elemDomRef.current;
-    let prevTouch = {
-      clientX: 0,
-      clientY: 0
-    };
-
-    let prevZoomTouch = [
-      {
-        clientX: 0,
-        clientY: 0
-      },
-      {
-        clientX: 0,
-        clientY: 0
-      }
-    ];
+    let prevTouch = {};
+    let prevZoomTouch = [];
 
     function onTouchStart(e) {
       e.preventDefault();
@@ -223,25 +220,15 @@ function usePanZoom({
       if (touches.length === 1) {
         const [touch] = e.touches;
         tryCall(cbRef.current.onPanStart, e);
-        prevTouch.clientX = touch.clientX;
-        prevTouch.clientY = touch.clientY;
+        prevTouch = touch;
       }
       // zoom
       else if (touches.length >= 2) {
         const touchCenter = center2p(touches);
         setOrigin(touchCenter);
         tryCall(cbRef.current.onZoomStart, e);
-
-        prevZoomTouch = [
-          {
-            clientX: touches[0].clientX,
-            clientY: touches[0].clientY
-          },
-          {
-            clientX: touches[1].clientX,
-            clientY: touches[1].clientY
-          }
-        ];
+        prevTouch = touches[0];
+        prevZoomTouch = touches;
       }
     }
 
@@ -255,15 +242,13 @@ function usePanZoom({
       // pan
       if (touches.length === 1) {
         const [touch] = touches;
-        const deltaX = touch.clientX - prevTouch.clientX;
-        const deltaY = touch.clientY - prevTouch.clientY;
+        const delta = getMoveDelta(touch, prevTouch);
         dragMoveListener({
-          dx: deltaX,
-          dy: deltaY
+          dx: delta.x,
+          dy: delta.y
         });
         tryCall(cbRef.current.onPan, e);
-        prevTouch.clientX = touch.clientX;
-        prevTouch.clientY = touch.clientY;
+        prevTouch = touch;
       }
       // zoom
       else if (touches.length >= 2) {
@@ -275,17 +260,8 @@ function usePanZoom({
         setOrigin(touchCenter);
         zoom(deltaDis * 0.005);
         tryCall(cbRef.current.onZoom, e);
-
-        prevZoomTouch = [
-          {
-            clientX: touches[0].clientX,
-            clientY: touches[0].clientY
-          },
-          {
-            clientX: touches[1].clientX,
-            clientY: touches[1].clientY
-          }
-        ];
+        prevTouch = touches[0];
+        prevZoomTouch = touches;
       }
     }
 
