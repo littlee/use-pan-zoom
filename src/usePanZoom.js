@@ -107,7 +107,7 @@ function usePanZoom({
     scale: 1
   });
 
-  const elemRef = useCallback((node) => {
+  const elemRef = useCallback(node => {
     if (node) {
       domRef.current = node;
     }
@@ -144,7 +144,7 @@ function usePanZoom({
             left: parentNowRect.left - parentInitRect.left
           }
         : { top: 0, left: 0 };
-      setStyle((prevStyle) => {
+      setStyle(prevStyle => {
         const xs =
           (clientX - initRect.left - parentDiff.left - prevStyle.x) /
           prevStyle.scale;
@@ -194,7 +194,7 @@ function usePanZoom({
     function onTouchStart(e) {
       isTouching = true;
       const touches = getTouches(e);
-      prevTouches = [].map.call(touches, (t) => {
+      prevTouches = [].map.call(touches, t => {
         return {
           clientX: t.clientX,
           clientY: t.clientY
@@ -221,7 +221,7 @@ function usePanZoom({
         };
         const [minX, maxX] = boundsRef.current.x;
         const [minY, maxY] = boundsRef.current.y;
-        setStyle((prevStyle) => {
+        setStyle(prevStyle => {
           return {
             ...prevStyle,
             x: clamp(minX, maxX, prevStyle.x + delta.x),
@@ -251,7 +251,7 @@ function usePanZoom({
           getFnValue(cbRef.current.onZoom, e);
         }
       }
-      prevTouches = [].map.call(touches, (t) => {
+      prevTouches = [].map.call(touches, t => {
         return {
           clientX: t.clientX,
           clientY: t.clientY
@@ -274,7 +274,7 @@ function usePanZoom({
       }
 
       const touches = getTouches(e);
-      prevTouches = [].map.call(touches, (t) => {
+      prevTouches = [].map.call(touches, t => {
         return {
           clientX: t.clientX,
           clientY: t.clientY
@@ -312,27 +312,30 @@ function usePanZoom({
     };
   }, [minScale, maxScale]);
 
-  function setStyleWithClamp(updater) {
-    return setStyle((prevStyle) => {
-      let upVal = getFnValue(updater, prevStyle);
-      if (typeof upVal.x === 'number') {
-        const [minX, maxX] = bounds.x;
-        upVal.x = clamp(minX, maxX, upVal.x);
-      }
-      if (typeof upVal.y === 'number') {
-        const [minY, maxY] = bounds.y;
-        upVal.y = clamp(minY, maxY, upVal.y);
-      }
-      if (typeof upVal.scale === 'number') {
-        upVal.scale = clamp(minScale, maxScale, upVal.scale);
-      }
+  const setStyleWithClamp = useCallback(
+    updater => {
+      return setStyle(prevStyle => {
+        let upVal = getFnValue(updater, prevStyle);
+        if (typeof upVal.x === 'number') {
+          const [minX, maxX] = boundsRef.current.x;
+          upVal.x = clamp(minX, maxX, upVal.x);
+        }
+        if (typeof upVal.y === 'number') {
+          const [minY, maxY] = boundsRef.current.y;
+          upVal.y = clamp(minY, maxY, upVal.y);
+        }
+        if (typeof upVal.scale === 'number') {
+          upVal.scale = clamp(minScale, maxScale, upVal.scale);
+        }
 
-      return {
-        ...prevStyle,
-        ...upVal
-      };
-    });
-  }
+        return {
+          ...prevStyle,
+          ...upVal
+        };
+      });
+    },
+    [minScale, maxScale]
+  );
 
   return {
     elemRef,

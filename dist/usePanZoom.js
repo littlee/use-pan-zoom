@@ -376,23 +376,22 @@ function usePanZoom() {
       }
     };
   }, [minScale, maxScale]);
-
-  function setStyleWithClamp(updater) {
+  var setStyleWithClamp = (0, _react.useCallback)(function (updater) {
     return setStyle(function (prevStyle) {
       var upVal = getFnValue(updater, prevStyle);
 
       if (typeof upVal.x === 'number') {
-        var _bounds$x = _slicedToArray(bounds.x, 2),
-            minX = _bounds$x[0],
-            maxX = _bounds$x[1];
+        var _boundsRef$current$x3 = _slicedToArray(boundsRef.current.x, 2),
+            minX = _boundsRef$current$x3[0],
+            maxX = _boundsRef$current$x3[1];
 
         upVal.x = clamp(minX, maxX, upVal.x);
       }
 
       if (typeof upVal.y === 'number') {
-        var _bounds$y = _slicedToArray(bounds.y, 2),
-            minY = _bounds$y[0],
-            maxY = _bounds$y[1];
+        var _boundsRef$current$y3 = _slicedToArray(boundsRef.current.y, 2),
+            minY = _boundsRef$current$y3[0],
+            maxY = _boundsRef$current$y3[1];
 
         upVal.y = clamp(minY, maxY, upVal.y);
       }
@@ -403,8 +402,7 @@ function usePanZoom() {
 
       return _objectSpread(_objectSpread({}, prevStyle), upVal);
     });
-  }
-
+  }, [minScale, maxScale]);
   return {
     elemRef: elemRef,
     style: style,
