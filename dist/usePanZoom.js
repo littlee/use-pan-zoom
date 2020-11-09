@@ -176,18 +176,21 @@ function usePanZoom() {
   (0, _react.useEffect)(function () {
     var isTouching = false;
     var $dom = domRef.current;
-    var $parent = $dom.parentElement;
+    var $parent = $dom.offsetParent;
     var initRect = $dom.getBoundingClientRect();
-    var parentInitRect = $parent.getBoundingClientRect();
+    var parentInitRect = $parent && $parent.getBoundingClientRect();
 
     function zoom(point, delta) {
       var clientX = point.clientX,
           clientY = point.clientY;
       var amount = getScaleMultiplier(delta);
-      var parentNowRect = $parent.getBoundingClientRect();
-      var parentDiff = {
+      var parentNowRect = $parent && $parent.getBoundingClientRect();
+      var parentDiff = $parent ? {
         top: parentNowRect.top - parentInitRect.top,
         left: parentNowRect.left - parentInitRect.left
+      } : {
+        top: 0,
+        left: 0
       };
       setStyle(function (prevStyle) {
         var xs = (clientX - initRect.left - parentDiff.left - prevStyle.x) / prevStyle.scale;

@@ -76,7 +76,3 @@ const App = () => {
   );
 };
 ```
-
-## Limitations
-
-- for good reasons, the dom node attaches to `elemRef` can't be `position: fixed`

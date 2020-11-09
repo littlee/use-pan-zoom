@@ -130,18 +130,20 @@ function usePanZoom({
   useEffect(() => {
     let isTouching = false;
     const $dom = domRef.current;
-    const $parent = $dom.parentElement;
+    const $parent = $dom.offsetParent;
     const initRect = $dom.getBoundingClientRect();
-    const parentInitRect = $parent.getBoundingClientRect();
+    const parentInitRect = $parent && $parent.getBoundingClientRect();
 
     function zoom(point, delta) {
       const { clientX, clientY } = point;
       const amount = getScaleMultiplier(delta);
-      const parentNowRect = $parent.getBoundingClientRect();
-      const parentDiff = {
-        top: parentNowRect.top - parentInitRect.top,
-        left: parentNowRect.left - parentInitRect.left
-      };
+      const parentNowRect = $parent && $parent.getBoundingClientRect();
+      const parentDiff = $parent
+        ? {
+            top: parentNowRect.top - parentInitRect.top,
+            left: parentNowRect.left - parentInitRect.left
+          }
+        : { top: 0, left: 0 };
       setStyle((prevStyle) => {
         const xs =
           (clientX - initRect.left - parentDiff.left - prevStyle.x) /
@@ -278,7 +280,6 @@ function usePanZoom({
           clientY: t.clientY
         };
       });
-      
     }
 
     function onCtxMenu(e) {
