@@ -1,4 +1,18 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
+const IS_TOUCH_DEVICE = document.ontouchstart !== undefined;
+
+function distance2p([p1, p2]) {
+  return Math.sqrt(
+    Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2)
+  );
+}
+
+function center2p([p1, p2]) {
+  return {
+    clientX: (p1.clientX + p2.clientX) / 2,
+    clientY: (p1.clientY + p2.clientY) / 2
+  };
+}
 
 function clamp(min, max, value) {
   if (min > max) {
@@ -7,6 +21,10 @@ function clamp(min, max, value) {
     );
   }
   return value < min ? min : value > max ? max : value;
+}
+
+function isNil(x) {
+  return x == null;
 }
 
 function getFnValue(fn, ...args) {
@@ -23,50 +41,26 @@ function sortBounds(b) {
   };
 }
 
-function tryCall(fn, ...args) {
-  if (typeof fn === 'function') {
-    return fn(...args);
+function getTouches(e) {
+  if (IS_TOUCH_DEVICE) {
+    return e.touches;
   }
+  return [
+    {
+      clientX: e.clientX,
+      clientY: e.clientY
+    }
+  ];
 }
 
-function distance2p([p1, p2]) {
-  return Math.sqrt(
-    Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2)
-  );
+function getScaleMultiplier(delta) {
+  var sign = Math.sign(delta);
+  var deltaAdjustedSpeed = Math.min(0.25, Math.abs(delta / 128));
+  return 1 - sign * deltaAdjustedSpeed;
 }
 
-function center2p([p1, p2]) {
-  return {
-    x: (p1.clientX + p2.clientX) / 2,
-    y: (p1.clientY + p2.clientY) / 2
-  };
-}
-
-function getInsideTouch(size, style, touches) {
-  const rect = {
-    x: style.x,
-    y: style.y,
-    width: size.width * style.scale,
-    height: size.height * style.scale
-  };
-  return [].filter.call(touches, item => {
-    return (
-      item.clientX >= rect.x &&
-      item.clientX <= rect.x + rect.width &&
-      item.clientY >= rect.y &&
-      item.clientY <= rect.y + rect.height
-    );
-  });
-}
-
-function getMoveDelta(touch, prevTouch) {
-  if (touch.identifier !== prevTouch.identifier) {
-    return { x: 0, y: 0 };
-  }
-  return {
-    x: touch.clientX - prevTouch.clientX,
-    y: touch.clientY - prevTouch.clientY
-  };
+function getErr(msg) {
+  return `usePanZoom: ${msg}`;
 }
 
 function usePanZoom({
@@ -83,44 +77,46 @@ function usePanZoom({
     y: [-Infinity, Infinity]
   }
 } = {}) {
-  const elemDomRef = useRef();
-  const elemRectRef = useRef({
-    width: 0,
-    height: 0
-  });
-  const elemRef = useCallback(node => {
-    if (node !== null) {
-      const rect = node.getBoundingClientRect();
-      elemRectRef.current = rect;
-      elemDomRef.current = node;
+  if (!isNil(minScale) && typeof minScale !== 'number') {
+    throw Error(getErr('minScale should be number'));
+  }
+  if (!isNil(maxScale) && typeof maxScale !== 'number') {
+    throw Error(getErr('maxScale should be number'));
+  }
+  if (!isNil(bounds) && ['object', 'function'].indexOf(typeof bounds) === -1) {
+    throw Error(
+      getErr(
+        'bounds should be object ({x?:[Number, Number], y?:[Number, Number]}) or function'
+      )
+    );
+  }
+
+  if (typeof bounds === 'object') {
+    if (!bounds.x) {
+      bounds.x = [-Infinity, Infinity];
     }
-  }, []);
-  const [origin, setOrigin] = useState({
-    x: 0,
-    y: 0
-  });
+    if (!bounds.y) {
+      bounds.y = [-Infinity, Infinity];
+    }
+  }
+
+  const domRef = useRef();
   const [style, setStyle] = useState({
     x: 0,
     y: 0,
     scale: 1
   });
 
-  // ref copy
-  const originRef = useRef();
-  const styleRef = useRef();
+  const elemRef = useCallback((node) => {
+    if (node) {
+      domRef.current = node;
+    }
+  }, []);
+
   const boundsRef = useRef();
   const cbRef = useRef();
   useEffect(() => {
-    originRef.current = origin;
-    styleRef.current = style;
-    boundsRef.current = sortBounds(
-      getFnValue(bounds, {
-        elem: elemDomRef.current,
-        origin,
-        style,
-        rect: elemRectRef.current
-      })
-    );
+    boundsRef.current = sortBounds(getFnValue(bounds, {}));
     cbRef.current = {
       onPanStart,
       onPan,
@@ -131,174 +127,216 @@ function usePanZoom({
     };
   });
 
-  const zoom = useCallback(
-    ds => {
-      const rOrigin = originRef.current;
-      const rBounds = boundsRef.current;
-      setStyle(ms => {
-        const nextScale = clamp(minScale, maxScale, ms.scale + ds);
-        const clampDs = nextScale - ms.scale;
-        const dot = {
-          x: (rOrigin.x - ms.x) / nextScale,
-          y: (rOrigin.y - ms.y) / nextScale
-        };
-        const elemSize = elemRectRef.current;
-        const accX = elemSize.width * clampDs * (dot.x / elemSize.width);
-        const accY = elemSize.height * clampDs * (dot.y / elemSize.height);
-        const nextX = clamp(rBounds.x[0], rBounds.x[1], ms.x - accX);
-        const nextY = clamp(rBounds.y[0], rBounds.y[1], ms.y - accY);
+  useEffect(() => {
+    let isTouching = false;
+    const $dom = domRef.current;
+    const $parent = $dom.parentElement;
+    const initRect = $dom.getBoundingClientRect();
+    const parentInitRect = $parent.getBoundingClientRect();
+
+    function zoom(point, delta) {
+      const { clientX, clientY } = point;
+      const amount = getScaleMultiplier(delta);
+      const parentNowRect = $parent.getBoundingClientRect();
+      const parentDiff = {
+        top: parentNowRect.top - parentInitRect.top,
+        left: parentNowRect.left - parentInitRect.left
+      };
+      setStyle((prevStyle) => {
+        const xs =
+          (clientX - initRect.left - parentDiff.left - prevStyle.x) /
+          prevStyle.scale;
+        const ys =
+          (clientY - initRect.top - parentDiff.top - prevStyle.y) /
+          prevStyle.scale;
+        const nextScale = clamp(minScale, maxScale, prevStyle.scale * amount);
+        const [minX, maxX] = boundsRef.current.x;
+        const [minY, maxY] = boundsRef.current.y;
         return {
-          ...ms,
           scale: nextScale,
-          x: nextX,
-          y: nextY
+          x: clamp(
+            minX,
+            maxX,
+            clientX - initRect.left - parentDiff.left - xs * nextScale
+          ),
+          y: clamp(
+            minY,
+            maxY,
+            clientY - initRect.top - parentDiff.top - ys * nextScale
+          )
         };
       });
-    },
-    [maxScale, minScale]
-  );
-  useEffect(() => {
-    const $elem = elemDomRef.current;
-    let t = null;
-    let called = false;
+    }
+
+    let wheelTimer = null;
+    let wheelCalled = false;
     function onWheel(e) {
       e.preventDefault();
-      if (e.ctrlKey) {
-        if (!called) {
-          tryCall(cbRef.current.onZoomStart, e);
-          called = true;
-        } else {
-          tryCall(cbRef.current.onZoom, e);
-        }
-        clearTimeout(t);
-        t = setTimeout(() => {
-          tryCall(cbRef.current.onZoomEnd, e);
-          called = false;
-        }, 200);
-
-        const ds = -1 * e.deltaY * 0.005;
-        setOrigin({
-          x: e.clientX,
-          y: e.clientY
-        });
-        zoom(ds);
+      const { clientX, clientY, deltaY } = e;
+      zoom({ clientX, clientY }, deltaY);
+      if (!wheelCalled) {
+        getFnValue(cbRef.current.onZoomStart, e);
+        wheelCalled = true;
+      } else {
+        getFnValue(cbRef.current.onZoom, e);
       }
-    }
-    $elem.addEventListener('wheel', onWheel);
-    return () => {
-      clearTimeout(t);
-      $elem.removeEventListener('wheel', onWheel);
-    };
-  }, [zoom]);
-
-  useEffect(() => {
-    function dragMoveListener(event) {
-      setStyle(ms => {
-        const rBounds = boundsRef.current;
-        const nextX = clamp(rBounds.x[0], rBounds.x[1], ms.x + event.dx);
-        const nextY = clamp(rBounds.y[0], rBounds.y[1], ms.y + event.dy);
-        return {
-          ...ms,
-          x: nextX,
-          y: nextY
-        };
-      });
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => {
+        getFnValue(cbRef.current.onZoomEnd, e);
+        wheelCalled = false;
+      }, 200);
     }
 
-    const $elem = elemDomRef.current;
-    let prevTouch = {};
-    let prevZoomTouch = [];
+    let prevTouches = [];
 
     function onTouchStart(e) {
-      e.preventDefault();
-      const touches = getInsideTouch(
-        elemRectRef.current,
-        styleRef.current,
-        e.touches
-      );
-      // pan
+      isTouching = true;
+      const touches = getTouches(e);
+      prevTouches = [].map.call(touches, (t) => {
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY
+        };
+      });
       if (touches.length === 1) {
-        const [touch] = e.touches;
-        tryCall(cbRef.current.onPanStart, e);
-        prevTouch = touch;
-      }
-      // zoom
-      else if (touches.length >= 2) {
-        const touchCenter = center2p(touches);
-        setOrigin(touchCenter);
-        tryCall(cbRef.current.onZoomStart, e);
-        prevTouch = touches[0];
-        prevZoomTouch = touches;
+        getFnValue(cbRef.current.onPanStart, e);
+      } else if (touches.length === 2) {
+        getFnValue(cbRef.current.onZoomStart, e);
       }
     }
 
     function onTouchMove(e) {
       e.preventDefault();
-      const touches = getInsideTouch(
-        elemRectRef.current,
-        styleRef.current,
-        e.touches
-      );
-      // pan
+      if (!isTouching) {
+        return;
+      }
+      const touches = getTouches(e);
       if (touches.length === 1) {
         const [touch] = touches;
-        const delta = getMoveDelta(touch, prevTouch);
-        dragMoveListener({
-          dx: delta.x,
-          dy: delta.y
+        const delta = {
+          x: touch.clientX - prevTouches[0].clientX,
+          y: touch.clientY - prevTouches[0].clientY
+        };
+        const [minX, maxX] = boundsRef.current.x;
+        const [minY, maxY] = boundsRef.current.y;
+        setStyle((prevStyle) => {
+          return {
+            ...prevStyle,
+            x: clamp(minX, maxX, prevStyle.x + delta.x),
+            y: clamp(minY, maxY, prevStyle.y + delta.y)
+          };
         });
-        tryCall(cbRef.current.onPan, e);
-        prevTouch = touch;
+        getFnValue(cbRef.current.onPan, e);
+      } else if (touches.length === 2) {
+        const prevPoints = prevTouches.slice(0, 2);
+        if (prevPoints.length < 2) {
+          getFnValue(cbRef.current.onZoomStart, e);
+        } else {
+          const points = [
+            {
+              clientX: touches[0].clientX,
+              clientY: touches[0].clientY
+            },
+            {
+              clientX: touches[1].clientX,
+              clientY: touches[1].clientY
+            }
+          ];
+          const prevTouchDis = distance2p(prevPoints);
+          const touchDis = distance2p(points);
+          const touchCenter = center2p(points);
+          zoom(touchCenter, prevTouchDis - touchDis);
+          getFnValue(cbRef.current.onZoom, e);
+        }
       }
-      // zoom
-      else if (touches.length >= 2) {
-        const touchCenter = center2p(touches);
-        const dis = distance2p(touches);
-        const prevDis = distance2p(prevZoomTouch);
-        const deltaDis = dis - prevDis;
-
-        setOrigin(touchCenter);
-        zoom(deltaDis * 0.005);
-        tryCall(cbRef.current.onZoom, e);
-        prevTouch = touches[0];
-        prevZoomTouch = touches;
-      }
+      prevTouches = [].map.call(touches, (t) => {
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY
+        };
+      });
     }
 
     function onTouchEnd(e) {
-      e.preventDefault();
-      const touches = getInsideTouch(
-        elemRectRef.current,
-        styleRef.current,
-        e.changedTouches
-      );
-      // pan
-      if (touches.length === 1) {
-        tryCall(cbRef.current.onPanEnd, e);
+      if (IS_TOUCH_DEVICE) {
+        isTouching = Boolean(e.touches.length);
+      } else {
+        isTouching = false;
       }
-      // zoom
-      else if (touches.length >= 2) {
-        tryCall(cbRef.current.onZoomEnd, e);
+
+      // hard to release all fingers at the same time ?
+      if (prevTouches.length === 1) {
+        getFnValue(cbRef.current.onPanEnd, e);
+      } else if (prevTouches.length === 2) {
+        getFnValue(cbRef.current.onZoomEnd, e);
       }
+
+      const touches = getTouches(e);
+      prevTouches = [].map.call(touches, (t) => {
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY
+        };
+      });
+      
     }
 
-    $elem.addEventListener('touchstart', onTouchStart);
-    $elem.addEventListener('touchmove', onTouchMove);
-    $elem.addEventListener('touchend', onTouchEnd);
+    function onCtxMenu(e) {
+      e.preventDefault();
+    }
 
+    $dom.addEventListener('wheel', onWheel);
+    $dom.addEventListener('contextmenu', onCtxMenu);
+    if (IS_TOUCH_DEVICE) {
+      $dom.addEventListener('touchstart', onTouchStart);
+      $dom.addEventListener('touchmove', onTouchMove);
+      $dom.addEventListener('touchend', onTouchEnd);
+    } else {
+      $dom.addEventListener('mousedown', onTouchStart);
+      window.addEventListener('mousemove', onTouchMove);
+      window.addEventListener('mouseup', onTouchEnd);
+    }
     return () => {
-      $elem.removeEventListener('touchstart', onTouchStart);
-      $elem.removeEventListener('touchmove', onTouchMove);
-      $elem.removeEventListener('touchend', onTouchEnd);
+      $dom.removeEventListener('wheel', onWheel);
+      $dom.removeEventListener('contextmenu', onCtxMenu);
+      if (IS_TOUCH_DEVICE) {
+        $dom.removeEventListener('touchstart', onTouchStart);
+        $dom.removeEventListener('touchmove', onTouchMove);
+        $dom.removeEventListener('touchend', onTouchEnd);
+      } else {
+        $dom.removeEventListener('mousedown', onTouchStart);
+        window.removeEventListener('mousemove', onTouchMove);
+        window.removeEventListener('mouseup', onTouchEnd);
+      }
     };
-  }, [zoom]);
+  }, [minScale, maxScale]);
+
+  function setStyleWithClamp(updater) {
+    return setStyle((prevStyle) => {
+      let upVal = getFnValue(updater, prevStyle);
+      if (typeof upVal.x === 'number') {
+        const [minX, maxX] = bounds.x;
+        upVal.x = clamp(minX, maxX, upVal.x);
+      }
+      if (typeof upVal.y === 'number') {
+        const [minY, maxY] = bounds.y;
+        upVal.y = clamp(minY, maxY, upVal.y);
+      }
+      if (typeof upVal.scale === 'number') {
+        upVal.scale = clamp(minScale, maxScale, upVal.scale);
+      }
+
+      return {
+        ...prevStyle,
+        ...upVal
+      };
+    });
+  }
 
   return {
     elemRef,
-    origin,
-    setOrigin,
     style,
-    setStyle
+    setStyle: setStyleWithClamp
   };
 }
 

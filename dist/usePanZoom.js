@@ -13,11 +13,13 @@ function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { va
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
 
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 
-function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(n); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
 
 function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
 
@@ -25,12 +27,37 @@ function _iterableToArrayLimit(arr, i) { if (typeof Symbol === "undefined" || !(
 
 function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
+var IS_TOUCH_DEVICE = document.ontouchstart !== undefined;
+
+function distance2p(_ref) {
+  var _ref2 = _slicedToArray(_ref, 2),
+      p1 = _ref2[0],
+      p2 = _ref2[1];
+
+  return Math.sqrt(Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2));
+}
+
+function center2p(_ref3) {
+  var _ref4 = _slicedToArray(_ref3, 2),
+      p1 = _ref4[0],
+      p2 = _ref4[1];
+
+  return {
+    clientX: (p1.clientX + p2.clientX) / 2,
+    clientY: (p1.clientY + p2.clientY) / 2
+  };
+}
+
 function clamp(min, max, value) {
   if (min > max) {
     throw new Error('min must not be greater than max in clamp(min, max, value)');
   }
 
   return value < min ? min : value > max ? max : value;
+}
+
+function isNil(x) {
+  return x == null;
 }
 
 function getFnValue(fn) {
@@ -56,59 +83,25 @@ function sortBounds(b) {
   };
 }
 
-function tryCall(fn) {
-  if (typeof fn === 'function') {
-    for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-      args[_key2 - 1] = arguments[_key2];
-    }
-
-    return fn.apply(void 0, args);
-  }
-}
-
-function distance2p(_ref) {
-  var _ref2 = _slicedToArray(_ref, 2),
-      p1 = _ref2[0],
-      p2 = _ref2[1];
-
-  return Math.sqrt(Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2));
-}
-
-function center2p(_ref3) {
-  var _ref4 = _slicedToArray(_ref3, 2),
-      p1 = _ref4[0],
-      p2 = _ref4[1];
-
-  return {
-    x: (p1.clientX + p2.clientX) / 2,
-    y: (p1.clientY + p2.clientY) / 2
-  };
-}
-
-function getInsideTouch(size, style, touches) {
-  var rect = {
-    x: style.x,
-    y: style.y,
-    width: size.width * style.scale,
-    height: size.height * style.scale
-  };
-  return [].filter.call(touches, function (item) {
-    return item.clientX >= rect.x && item.clientX <= rect.x + rect.width && item.clientY >= rect.y && item.clientY <= rect.y + rect.height;
-  });
-}
-
-function getMoveDelta(touch, prevTouch) {
-  if (touch.identifier !== prevTouch.identifier) {
-    return {
-      x: 0,
-      y: 0
-    };
+function getTouches(e) {
+  if (IS_TOUCH_DEVICE) {
+    return e.touches;
   }
 
-  return {
-    x: touch.clientX - prevTouch.clientX,
-    y: touch.clientY - prevTouch.clientY
-  };
+  return [{
+    clientX: e.clientX,
+    clientY: e.clientY
+  }];
+}
+
+function getScaleMultiplier(delta) {
+  var sign = Math.sign(delta);
+  var deltaAdjustedSpeed = Math.min(0.25, Math.abs(delta / 128));
+  return 1 - sign * deltaAdjustedSpeed;
+}
+
+function getErr(msg) {
+  return "usePanZoom: ".concat(msg);
 }
 
 function usePanZoom() {
@@ -129,50 +122,48 @@ function usePanZoom() {
     y: [-Infinity, Infinity]
   } : _ref5$bounds;
 
-  var elemDomRef = (0, _react.useRef)();
-  var elemRectRef = (0, _react.useRef)({
-    width: 0,
-    height: 0
-  });
-  var elemRef = (0, _react.useCallback)(function (node) {
-    if (node !== null) {
-      var rect = node.getBoundingClientRect();
-      elemRectRef.current = rect;
-      elemDomRef.current = node;
+  if (!isNil(minScale) && typeof minScale !== 'number') {
+    throw Error(getErr('minScale should be number'));
+  }
+
+  if (!isNil(maxScale) && typeof maxScale !== 'number') {
+    throw Error(getErr('maxScale should be number'));
+  }
+
+  if (!isNil(bounds) && ['object', 'function'].indexOf(_typeof(bounds)) === -1) {
+    throw Error(getErr('bounds should be object ({x?:[Number, Number], y?:[Number, Number]}) or function'));
+  }
+
+  if (_typeof(bounds) === 'object') {
+    if (!bounds.x) {
+      bounds.x = [-Infinity, Infinity];
     }
-  }, []);
+
+    if (!bounds.y) {
+      bounds.y = [-Infinity, Infinity];
+    }
+  }
+
+  var domRef = (0, _react.useRef)();
 
   var _useState = (0, _react.useState)({
-    x: 0,
-    y: 0
-  }),
-      _useState2 = _slicedToArray(_useState, 2),
-      origin = _useState2[0],
-      setOrigin = _useState2[1];
-
-  var _useState3 = (0, _react.useState)({
     x: 0,
     y: 0,
     scale: 1
   }),
-      _useState4 = _slicedToArray(_useState3, 2),
-      style = _useState4[0],
-      setStyle = _useState4[1]; // ref copy
+      _useState2 = _slicedToArray(_useState, 2),
+      style = _useState2[0],
+      setStyle = _useState2[1];
 
-
-  var originRef = (0, _react.useRef)();
-  var styleRef = (0, _react.useRef)();
+  var elemRef = (0, _react.useCallback)(function (node) {
+    if (node) {
+      domRef.current = node;
+    }
+  }, []);
   var boundsRef = (0, _react.useRef)();
   var cbRef = (0, _react.useRef)();
   (0, _react.useEffect)(function () {
-    originRef.current = origin;
-    styleRef.current = style;
-    boundsRef.current = sortBounds(getFnValue(bounds, {
-      elem: elemDomRef.current,
-      origin: origin,
-      style: style,
-      rect: elemRectRef.current
-    }));
+    boundsRef.current = sortBounds(getFnValue(bounds, {}));
     cbRef.current = {
       onPanStart: onPanStart,
       onPan: onPan,
@@ -182,157 +173,239 @@ function usePanZoom() {
       onZoomEnd: onZoomEnd
     };
   });
-  var zoom = (0, _react.useCallback)(function (ds) {
-    var rOrigin = originRef.current;
-    var rBounds = boundsRef.current;
-    setStyle(function (ms) {
-      var nextScale = clamp(minScale, maxScale, ms.scale + ds);
-      var clampDs = nextScale - ms.scale;
-      var dot = {
-        x: (rOrigin.x - ms.x) / nextScale,
-        y: (rOrigin.y - ms.y) / nextScale
-      };
-      var elemSize = elemRectRef.current;
-      var accX = elemSize.width * clampDs * (dot.x / elemSize.width);
-      var accY = elemSize.height * clampDs * (dot.y / elemSize.height);
-      var nextX = clamp(rBounds.x[0], rBounds.x[1], ms.x - accX);
-      var nextY = clamp(rBounds.y[0], rBounds.y[1], ms.y - accY);
-      return _objectSpread({}, ms, {
-        scale: nextScale,
-        x: nextX,
-        y: nextY
-      });
-    });
-  }, [maxScale, minScale]);
   (0, _react.useEffect)(function () {
-    var $elem = elemDomRef.current;
-    var t = null;
-    var called = false;
+    var isTouching = false;
+    var $dom = domRef.current;
+    var $parent = $dom.parentElement;
+    var initRect = $dom.getBoundingClientRect();
+    var parentInitRect = $parent.getBoundingClientRect();
+
+    function zoom(point, delta) {
+      var clientX = point.clientX,
+          clientY = point.clientY;
+      var amount = getScaleMultiplier(delta);
+      var parentNowRect = $parent.getBoundingClientRect();
+      var parentDiff = {
+        top: parentNowRect.top - parentInitRect.top,
+        left: parentNowRect.left - parentInitRect.left
+      };
+      setStyle(function (prevStyle) {
+        var xs = (clientX - initRect.left - parentDiff.left - prevStyle.x) / prevStyle.scale;
+        var ys = (clientY - initRect.top - parentDiff.top - prevStyle.y) / prevStyle.scale;
+        var nextScale = clamp(minScale, maxScale, prevStyle.scale * amount);
+
+        var _boundsRef$current$x = _slicedToArray(boundsRef.current.x, 2),
+            minX = _boundsRef$current$x[0],
+            maxX = _boundsRef$current$x[1];
+
+        var _boundsRef$current$y = _slicedToArray(boundsRef.current.y, 2),
+            minY = _boundsRef$current$y[0],
+            maxY = _boundsRef$current$y[1];
+
+        return {
+          scale: nextScale,
+          x: clamp(minX, maxX, clientX - initRect.left - parentDiff.left - xs * nextScale),
+          y: clamp(minY, maxY, clientY - initRect.top - parentDiff.top - ys * nextScale)
+        };
+      });
+    }
+
+    var wheelTimer = null;
+    var wheelCalled = false;
 
     function onWheel(e) {
       e.preventDefault();
+      var clientX = e.clientX,
+          clientY = e.clientY,
+          deltaY = e.deltaY;
+      zoom({
+        clientX: clientX,
+        clientY: clientY
+      }, deltaY);
 
-      if (e.ctrlKey) {
-        if (!called) {
-          tryCall(cbRef.current.onZoomStart, e);
-          called = true;
-        } else {
-          tryCall(cbRef.current.onZoom, e);
-        }
-
-        clearTimeout(t);
-        t = setTimeout(function () {
-          tryCall(cbRef.current.onZoomEnd, e);
-          called = false;
-        }, 200);
-        var ds = -1 * e.deltaY * 0.005;
-        setOrigin({
-          x: e.clientX,
-          y: e.clientY
-        });
-        zoom(ds);
+      if (!wheelCalled) {
+        getFnValue(cbRef.current.onZoomStart, e);
+        wheelCalled = true;
+      } else {
+        getFnValue(cbRef.current.onZoom, e);
       }
+
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(function () {
+        getFnValue(cbRef.current.onZoomEnd, e);
+        wheelCalled = false;
+      }, 200);
     }
 
-    $elem.addEventListener('wheel', onWheel);
-    return function () {
-      clearTimeout(t);
-      $elem.removeEventListener('wheel', onWheel);
-    };
-  }, [zoom]);
-  (0, _react.useEffect)(function () {
-    function dragMoveListener(event) {
-      setStyle(function (ms) {
-        var rBounds = boundsRef.current;
-        var nextX = clamp(rBounds.x[0], rBounds.x[1], ms.x + event.dx);
-        var nextY = clamp(rBounds.y[0], rBounds.y[1], ms.y + event.dy);
-        return _objectSpread({}, ms, {
-          x: nextX,
-          y: nextY
-        });
-      });
-    }
-
-    var $elem = elemDomRef.current;
-    var prevTouch = {};
-    var prevZoomTouch = [];
+    var prevTouches = [];
 
     function onTouchStart(e) {
-      e.preventDefault();
-      var touches = getInsideTouch(elemRectRef.current, styleRef.current, e.touches); // pan
+      isTouching = true;
+      var touches = getTouches(e);
+      prevTouches = [].map.call(touches, function (t) {
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY
+        };
+      });
 
       if (touches.length === 1) {
-        var _e$touches = _slicedToArray(e.touches, 1),
-            touch = _e$touches[0];
-
-        tryCall(cbRef.current.onPanStart, e);
-        prevTouch = touch;
-      } // zoom
-      else if (touches.length >= 2) {
-          var touchCenter = center2p(touches);
-          setOrigin(touchCenter);
-          tryCall(cbRef.current.onZoomStart, e);
-          prevTouch = touches[0];
-          prevZoomTouch = touches;
-        }
+        getFnValue(cbRef.current.onPanStart, e);
+      } else if (touches.length === 2) {
+        getFnValue(cbRef.current.onZoomStart, e);
+      }
     }
 
     function onTouchMove(e) {
       e.preventDefault();
-      var touches = getInsideTouch(elemRectRef.current, styleRef.current, e.touches); // pan
+
+      if (!isTouching) {
+        return;
+      }
+
+      var touches = getTouches(e);
 
       if (touches.length === 1) {
         var _touches = _slicedToArray(touches, 1),
             touch = _touches[0];
 
-        var delta = getMoveDelta(touch, prevTouch);
-        dragMoveListener({
-          dx: delta.x,
-          dy: delta.y
+        var delta = {
+          x: touch.clientX - prevTouches[0].clientX,
+          y: touch.clientY - prevTouches[0].clientY
+        };
+
+        var _boundsRef$current$x2 = _slicedToArray(boundsRef.current.x, 2),
+            minX = _boundsRef$current$x2[0],
+            maxX = _boundsRef$current$x2[1];
+
+        var _boundsRef$current$y2 = _slicedToArray(boundsRef.current.y, 2),
+            minY = _boundsRef$current$y2[0],
+            maxY = _boundsRef$current$y2[1];
+
+        setStyle(function (prevStyle) {
+          return _objectSpread(_objectSpread({}, prevStyle), {}, {
+            x: clamp(minX, maxX, prevStyle.x + delta.x),
+            y: clamp(minY, maxY, prevStyle.y + delta.y)
+          });
         });
-        tryCall(cbRef.current.onPan, e);
-        prevTouch = touch;
-      } // zoom
-      else if (touches.length >= 2) {
-          var touchCenter = center2p(touches);
-          var dis = distance2p(touches);
-          var prevDis = distance2p(prevZoomTouch);
-          var deltaDis = dis - prevDis;
-          setOrigin(touchCenter);
-          zoom(deltaDis * 0.005);
-          tryCall(cbRef.current.onZoom, e);
-          prevTouch = touches[0];
-          prevZoomTouch = touches;
+        getFnValue(cbRef.current.onPan, e);
+      } else if (touches.length === 2) {
+        var prevPoints = prevTouches.slice(0, 2);
+
+        if (prevPoints.length < 2) {
+          getFnValue(cbRef.current.onZoomStart, e);
+        } else {
+          var points = [{
+            clientX: touches[0].clientX,
+            clientY: touches[0].clientY
+          }, {
+            clientX: touches[1].clientX,
+            clientY: touches[1].clientY
+          }];
+          var prevTouchDis = distance2p(prevPoints);
+          var touchDis = distance2p(points);
+          var touchCenter = center2p(points);
+          zoom(touchCenter, prevTouchDis - touchDis);
+          getFnValue(cbRef.current.onZoom, e);
         }
+      }
+
+      prevTouches = [].map.call(touches, function (t) {
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY
+        };
+      });
     }
 
     function onTouchEnd(e) {
-      e.preventDefault();
-      var touches = getInsideTouch(elemRectRef.current, styleRef.current, e.changedTouches); // pan
+      if (IS_TOUCH_DEVICE) {
+        isTouching = Boolean(e.touches.length);
+      } else {
+        isTouching = false;
+      } // hard to release all fingers at the same time ?
 
-      if (touches.length === 1) {
-        tryCall(cbRef.current.onPanEnd, e);
-      } // zoom
-      else if (touches.length >= 2) {
-          tryCall(cbRef.current.onZoomEnd, e);
-        }
+
+      if (prevTouches.length === 1) {
+        getFnValue(cbRef.current.onPanEnd, e);
+      } else if (prevTouches.length === 2) {
+        getFnValue(cbRef.current.onZoomEnd, e);
+      }
+
+      var touches = getTouches(e);
+      prevTouches = [].map.call(touches, function (t) {
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY
+        };
+      });
     }
 
-    $elem.addEventListener('touchstart', onTouchStart);
-    $elem.addEventListener('touchmove', onTouchMove);
-    $elem.addEventListener('touchend', onTouchEnd);
+    function onCtxMenu(e) {
+      e.preventDefault();
+    }
+
+    $dom.addEventListener('wheel', onWheel);
+    $dom.addEventListener('contextmenu', onCtxMenu);
+
+    if (IS_TOUCH_DEVICE) {
+      $dom.addEventListener('touchstart', onTouchStart);
+      $dom.addEventListener('touchmove', onTouchMove);
+      $dom.addEventListener('touchend', onTouchEnd);
+    } else {
+      $dom.addEventListener('mousedown', onTouchStart);
+      window.addEventListener('mousemove', onTouchMove);
+      window.addEventListener('mouseup', onTouchEnd);
+    }
+
     return function () {
-      $elem.removeEventListener('touchstart', onTouchStart);
-      $elem.removeEventListener('touchmove', onTouchMove);
-      $elem.removeEventListener('touchend', onTouchEnd);
+      $dom.removeEventListener('wheel', onWheel);
+      $dom.removeEventListener('contextmenu', onCtxMenu);
+
+      if (IS_TOUCH_DEVICE) {
+        $dom.removeEventListener('touchstart', onTouchStart);
+        $dom.removeEventListener('touchmove', onTouchMove);
+        $dom.removeEventListener('touchend', onTouchEnd);
+      } else {
+        $dom.removeEventListener('mousedown', onTouchStart);
+        window.removeEventListener('mousemove', onTouchMove);
+        window.removeEventListener('mouseup', onTouchEnd);
+      }
     };
-  }, [zoom]);
+  }, [minScale, maxScale]);
+
+  function setStyleWithClamp(updater) {
+    return setStyle(function (prevStyle) {
+      var upVal = getFnValue(updater, prevStyle);
+
+      if (typeof upVal.x === 'number') {
+        var _bounds$x = _slicedToArray(bounds.x, 2),
+            minX = _bounds$x[0],
+            maxX = _bounds$x[1];
+
+        upVal.x = clamp(minX, maxX, upVal.x);
+      }
+
+      if (typeof upVal.y === 'number') {
+        var _bounds$y = _slicedToArray(bounds.y, 2),
+            minY = _bounds$y[0],
+            maxY = _bounds$y[1];
+
+        upVal.y = clamp(minY, maxY, upVal.y);
+      }
+
+      if (typeof upVal.scale === 'number') {
+        upVal.scale = clamp(minScale, maxScale, upVal.scale);
+      }
+
+      return _objectSpread(_objectSpread({}, prevStyle), upVal);
+    });
+  }
+
   return {
     elemRef: elemRef,
-    origin: origin,
-    setOrigin: setOrigin,
     style: style,
-    setStyle: setStyle
+    setStyle: setStyleWithClamp
   };
 }
 
