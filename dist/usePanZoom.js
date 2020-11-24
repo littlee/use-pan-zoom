@@ -163,7 +163,7 @@ function usePanZoom() {
   var boundsRef = (0, _react.useRef)();
   var cbRef = (0, _react.useRef)();
   (0, _react.useEffect)(function () {
-    boundsRef.current = sortBounds(getFnValue(bounds, {}));
+    boundsRef.current = bounds;
     cbRef.current = {
       onPanStart: onPanStart,
       onPan: onPan,
@@ -196,14 +196,17 @@ function usePanZoom() {
         var xs = (clientX - initRect.left - parentDiff.left - prevStyle.x) / prevStyle.scale;
         var ys = (clientY - initRect.top - parentDiff.top - prevStyle.y) / prevStyle.scale;
         var nextScale = clamp(minScale, maxScale, prevStyle.scale * amount);
+        var boundsVal = sortBounds(getFnValue(boundsRef.current, {
+          scale: nextScale
+        }));
 
-        var _boundsRef$current$x = _slicedToArray(boundsRef.current.x, 2),
-            minX = _boundsRef$current$x[0],
-            maxX = _boundsRef$current$x[1];
+        var _boundsVal$x = _slicedToArray(boundsVal.x, 2),
+            minX = _boundsVal$x[0],
+            maxX = _boundsVal$x[1];
 
-        var _boundsRef$current$y = _slicedToArray(boundsRef.current.y, 2),
-            minY = _boundsRef$current$y[0],
-            maxY = _boundsRef$current$y[1];
+        var _boundsVal$y = _slicedToArray(boundsVal.y, 2),
+            minY = _boundsVal$y[0],
+            maxY = _boundsVal$y[1];
 
         return {
           scale: nextScale,
@@ -276,16 +279,19 @@ function usePanZoom() {
           x: touch.clientX - prevTouches[0].clientX,
           y: touch.clientY - prevTouches[0].clientY
         };
-
-        var _boundsRef$current$x2 = _slicedToArray(boundsRef.current.x, 2),
-            minX = _boundsRef$current$x2[0],
-            maxX = _boundsRef$current$x2[1];
-
-        var _boundsRef$current$y2 = _slicedToArray(boundsRef.current.y, 2),
-            minY = _boundsRef$current$y2[0],
-            maxY = _boundsRef$current$y2[1];
-
         setStyle(function (prevStyle) {
+          var boundsVal = sortBounds(getFnValue(boundsRef.current, {
+            scale: prevStyle.scale
+          }));
+
+          var _boundsVal$x2 = _slicedToArray(boundsVal.x, 2),
+              minX = _boundsVal$x2[0],
+              maxX = _boundsVal$x2[1];
+
+          var _boundsVal$y2 = _slicedToArray(boundsVal.y, 2),
+              minY = _boundsVal$y2[0],
+              maxY = _boundsVal$y2[1];
+
           return _objectSpread(_objectSpread({}, prevStyle), {}, {
             x: clamp(minX, maxX, prevStyle.x + delta.x),
             y: clamp(minY, maxY, prevStyle.y + delta.y)
@@ -379,19 +385,22 @@ function usePanZoom() {
   var setStyleWithClamp = (0, _react.useCallback)(function (updater) {
     return setStyle(function (prevStyle) {
       var upVal = getFnValue(updater, prevStyle);
+      var boundsVal = sortBounds(getFnValue(boundsRef.current, {
+        scale: prevStyle.scale
+      }));
 
       if (typeof upVal.x === 'number') {
-        var _boundsRef$current$x3 = _slicedToArray(boundsRef.current.x, 2),
-            minX = _boundsRef$current$x3[0],
-            maxX = _boundsRef$current$x3[1];
+        var _boundsVal$x3 = _slicedToArray(boundsVal.x, 2),
+            minX = _boundsVal$x3[0],
+            maxX = _boundsVal$x3[1];
 
         upVal.x = clamp(minX, maxX, upVal.x);
       }
 
       if (typeof upVal.y === 'number') {
-        var _boundsRef$current$y3 = _slicedToArray(boundsRef.current.y, 2),
-            minY = _boundsRef$current$y3[0],
-            maxY = _boundsRef$current$y3[1];
+        var _boundsVal$y3 = _slicedToArray(boundsVal.y, 2),
+            minY = _boundsVal$y3[0],
+            maxY = _boundsVal$y3[1];
 
         upVal.y = clamp(minY, maxY, upVal.y);
       }
