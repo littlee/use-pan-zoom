@@ -116,7 +116,7 @@ function usePanZoom({
   const boundsRef = useRef();
   const cbRef = useRef();
   useEffect(() => {
-    boundsRef.current = sortBounds(getFnValue(bounds, {}));
+    boundsRef.current = bounds;
     cbRef.current = {
       onPanStart,
       onPan,
@@ -152,8 +152,13 @@ function usePanZoom({
           (clientY - initRect.top - parentDiff.top - prevStyle.y) /
           prevStyle.scale;
         const nextScale = clamp(minScale, maxScale, prevStyle.scale * amount);
-        const [minX, maxX] = boundsRef.current.x;
-        const [minY, maxY] = boundsRef.current.y;
+        const boundsVal = sortBounds(
+          getFnValue(boundsRef.current, {
+            scale: nextScale
+          })
+        );
+        const [minX, maxX] = boundsVal.x;
+        const [minY, maxY] = boundsVal.y;
         return {
           scale: nextScale,
           x: clamp(
@@ -219,9 +224,15 @@ function usePanZoom({
           x: touch.clientX - prevTouches[0].clientX,
           y: touch.clientY - prevTouches[0].clientY
         };
-        const [minX, maxX] = boundsRef.current.x;
-        const [minY, maxY] = boundsRef.current.y;
+
         setStyle(prevStyle => {
+          const boundsVal = sortBounds(
+            getFnValue(boundsRef.current, {
+              scale: prevStyle.scale
+            })
+          );
+          const [minX, maxX] = boundsVal.x;
+          const [minY, maxY] = boundsVal.y;
           return {
             ...prevStyle,
             x: clamp(minX, maxX, prevStyle.x + delta.x),
@@ -316,12 +327,17 @@ function usePanZoom({
     updater => {
       return setStyle(prevStyle => {
         let upVal = getFnValue(updater, prevStyle);
+        const boundsVal = sortBounds(
+          getFnValue(boundsRef.current, {
+            scale: prevStyle.scale
+          })
+        );
         if (typeof upVal.x === 'number') {
-          const [minX, maxX] = boundsRef.current.x;
+          const [minX, maxX] = boundsVal.x;
           upVal.x = clamp(minX, maxX, upVal.x);
         }
         if (typeof upVal.y === 'number') {
-          const [minY, maxY] = boundsRef.current.y;
+          const [minY, maxY] = boundsVal.y;
           upVal.y = clamp(minY, maxY, upVal.y);
         }
         if (typeof upVal.scale === 'number') {
