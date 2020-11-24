@@ -49,7 +49,7 @@ options: (Object)
 
 - minScale: (Number) minimum scale, default `-Infinity`
 - maxScale: (Number) maximum scale, default `Infinity`
-- bounds: (Object: {x?: [Number, Number], y?: [Number, Number]} | Function: () => Object) element position bounds, default: `{ x: [-Infinity, Infinity], y: [-Infinity, Infinity] }`
+- bounds: (Object: {x?: [Number, Number], y?: [Number, Number]} | Function: ({ scale }) => Object) element position bounds, default: `{ x: [-Infinity, Infinity], y: [-Infinity, Infinity] }`
 - onPanStart: (Function(event)) pan start callback
 - onPan: (Function(event)) panning callback
 - onPanEnd: (Function(event)) pan end callback
@@ -75,4 +75,23 @@ const App = () => {
     />
   );
 };
+```
+
+## Caveats
+
+### calculat bounds based on the current scale
+
+If bounds are calculated based on the current scale, use `scale` from parameters instead of `style.scale`, because `style` is a React State, the value could be staled until the next effect
+
+e.g. limit pan zoom inside parentElement
+
+```js
+usePanZoom({
+  bounds: ({ scale }) => {
+    return {
+      x: [parent.width - element.width * scale, 0],
+      y: [parent.height - element.height * scale, 0]
+    };
+  }
+});
 ```
