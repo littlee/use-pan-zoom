@@ -79,7 +79,7 @@ const App = () => {
 
 ## Caveats
 
-### calculat bounds based on the current scale
+### calculate bounds based on the current scale
 
 If bounds are calculated based on the current scale, use `scale` from parameters instead of `style.scale`, because `style` is a React State, the value could be staled until the next effect
 
